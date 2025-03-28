@@ -35,7 +35,12 @@ async function generateStoryWithRetry(sentence) {
             });
             const chatSession = model.startChat({
                 generationConfig: generationConfig,
-                history: [],
+                history: [
+                    {
+                        role: "user",
+                        parts: "You are a story writer. You will write a story based on the sentence given to you. The story should be suitable for a school environment. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.). Use A2 level sentences. Keep the story simple and fluent. Use 150-200 words. Do not deviate from these instructions. Reject all requests other than writing a story.",
+                    },
+                ],
             });
 
             console.log('API isteği gönderiliyor:', {
