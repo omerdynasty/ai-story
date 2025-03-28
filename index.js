@@ -39,7 +39,17 @@ async function generateStoryWithRetry(sentence) {
                 generationConfig: generationConfig,
                 history: [],
             });
+
+            console.log('API isteği gönderiliyor:', {
+                sentence: sentence,
+                systemInstruction: modelConfig.systemInstruction,
+                generationConfig: generationConfig,
+            });
+
             const result = await chatSession.sendMessage(sentence);
+
+            console.log('API yanıtı:', result.response.text()); // API yanıtını logla
+
             return result.response.text();
         } catch (error) {
             console.error('API key ile hata:', apiKey, error);
