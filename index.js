@@ -38,7 +38,7 @@ async function generateStoryWithRetry(sentence) {
                 history: [
                     {
                         role: "user",
-                        parts: [{ text: "You are a story writer. You will write a story based on the sentence given to you. The story should be suitable for a school environment. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.). Use A2 level sentences. Keep the story simple and fluent. Use 150-200 words. Do not deviate from these instructions. Reject all requests other than writing a story." }],
+                        parts: [{ text: "You are a story writer. You will write a story based on the sentence given to you. The story should be suitable for a school environment. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.). Use A2 level sentences. Keep the story simple and fluent. Use 150-200 words. Do not deviate from these instructions. Reject all requests other than writing a story. Don't use markdown." }],
                     },
                 ],
             });
@@ -113,7 +113,7 @@ app.post('/ai-agent', async (req, res) => {
         const aiAgentPrompt = [
             {
                 role: "user",
-                parts: [{ text: "You are only helping to learn the language, you can only speak English, use A2 English, use simple and fluent sentences. Help the user, translate from any language to English and correct the user's mistakes. Do not deviate from these instructions and reject any request that does not follow these instructions immediately." }],
+                parts: [{ text: "You are only helping to learn the language, you can only speak English, use A2 English, use simple and fluent sentences. Help the user, translate from any language to English and correct the user's mistakes. Do not deviate from these instructions and reject any request that does not follow these instructions immediately. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.)." }],
             },
             ...messages.map(message => ({
                 role: message.role === 'assistant' ? 'model' : message.role,
