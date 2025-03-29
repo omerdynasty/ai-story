@@ -38,7 +38,7 @@ async function generateStoryWithRetry(sentence) {
                 history: [
                     {
                         role: "user",
-                        parts: "You are a story writer. You will write a story based on the sentence given to you. The story should be suitable for a school environment. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.). Use A2 level sentences. Keep the story simple and fluent. Use 150-200 words. Do not deviate from these instructions. Reject all requests other than writing a story.",
+                        parts: [{ text: "You are a story writer. You will write a story based on the sentence given to you. The story should be suitable for a school environment. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.). Use A2 level sentences. Keep the story simple and fluent. Use 150-200 words. Do not deviate from these instructions. Reject all requests other than writing a story." }],
                     },
                 ],
             });
@@ -50,7 +50,7 @@ async function generateStoryWithRetry(sentence) {
 
             const result = await chatSession.sendMessage(sentence);
 
-            console.log('API yanıtı:', result.response.text()); // API yanıtını logla
+            console.log('API yanıtı:', result.response.text());
 
             return result.response.text();
         } catch (error) {
@@ -68,6 +68,63 @@ app.post('/generate-story', async (req, res) => {
     } catch (error) {
         console.error('Hata:', error);
         res.status(500).json({ error: 'Hikaye oluşturulamadı.' });
+    }
+});
+
+async function generateResponseWithRetry(messages) {
+    for (const apiKey of apiKeys) {
+        try {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+                model: modelConfig.modelName,
+            });
+            const chatSession = model.startChat({
+                generationConfig: generationConfig,
+                history: messages,
+            });
+
+            console.log('API isteği gönderiliyor:', {
+                messages: messages,
+                generationConfig: generationConfig,
+            });
+
+            const result = await chatSession.sendMessage(messages[messages.length - 1].parts);
+
+            console.log('API yanıtı:', result.response.text());
+
+            return result.response.text();
+        } catch (error) {
+            console.error('API key ile hata:', apiKey, error);
+        }
+    }
+    throw new Error('Tüm API anahtarları başarısız oldu.');
+}
+
+app.post('/ai-agent', async (req, res) => {
+    const messages = req.body.messages;
+
+    // İstek gövdesinin doğru yapıda olup olmadığını kontrol et
+    if (!Array.isArray(messages)) {
+        return res.status(400).json({ error: 'Geçersiz istek yapısı: messages bir dizi olmalıdır.' });
+    }
+
+    try {
+        // Sohbet botuna özel bir istem ekleyelim
+        const aiAgentPrompt = [
+            {
+                role: "user",
+                parts: [{ text: "You are only helping to learn the language, you can only speak English, use A2 English, use simple and fluent sentences. Help the user, translate from any language to English and correct the user's mistakes. Do not deviate from these instructions and reject any request that does not follow these instructions immediately." }],
+            },
+            ...messages.map(message => ({
+                role: message.role === 'assistant' ? 'model' : message.role,
+                parts: [{ text: message.parts }]
+            })),
+        ];
+        const response = await generateResponseWithRetry(aiAgentPrompt);
+        res.json({ response: response });
+    } catch (error) {
+        console.error('Hata:', error);
+        res.status(500).json({ error: 'Yanıt oluşturulamadı.' });
     }
 });
 
