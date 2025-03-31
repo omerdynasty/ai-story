@@ -11,6 +11,9 @@ const apiKeys = [
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY_BACKUP1,
     process.env.GEMINI_API_KEY_BACKUP2,
+    process.env.GEMINI_API_KEY_BACKUP3,
+    process.env.GEMINI_API_KEY_BACKUP4,
+    process.env.GEMINI_API_KEY_BACKUP5,
 ].filter(Boolean);
 
 console.log(`g.dev/omerdynasty <3`);
