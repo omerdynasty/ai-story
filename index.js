@@ -106,13 +106,11 @@ async function generateResponseWithRetry(messages) {
 app.post('/ai-agent', async (req, res) => {
     const messages = req.body.messages;
 
-    // İstek gövdesinin doğru yapıda olup olmadığını kontrol et
     if (!Array.isArray(messages)) {
         return res.status(400).json({ error: 'Geçersiz istek yapısı: messages bir dizi olmalıdır.' });
     }
 
     try {
-        // Sohbet botuna özel bir istem ekleyelim
         const aiAgentPrompt = [
             {
                 role: "user",
@@ -129,6 +127,15 @@ app.post('/ai-agent', async (req, res) => {
         console.error('Hata:', error);
         res.status(500).json({ error: 'Yanıt oluşturulamadı.' });
     }
+});
+
+// HEAD isteği için endpoint
+app.head('/generate-story', (req, res) => {
+    res.status(200).end();
+});
+
+app.head('/ai-agent', (req, res) => {
+    res.status(200).end();
 });
 
 const port = process.env.PORT || 3000;
