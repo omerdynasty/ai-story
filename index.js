@@ -33,35 +33,33 @@ async function generateStoryWithRetry(sentence) {
     for (const apiKey of apiKeys) {
         try {
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({
-                model: modelConfig.modelName,
-            });
+            const model = genAI.getGenerativeModel({ model: modelConfig.modelName });
             const chatSession = model.startChat({
                 generationConfig: generationConfig,
                 history: [
                     {
                         role: "user",
-                        parts: [{ text: "You are a story writer. You will write a story based on the sentence given to you. The story should be suitable for a school environment. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.). Use A2 level sentences. Keep the story simple and fluent. Use 150-200 words. Do not deviate from these instructions. Reject all requests other than writing a story. Don't use markdown." }],
+                        parts: [{ text: "You are a story writer..." }] // kısaltıldı
                     },
                 ],
             });
 
-            console.log('API isteği gönderiliyor:', {
-                sentence: sentence,
-                generationConfig: generationConfig,
-            });
+            console.log(`[${new Date().toISOString()}] [generate-story] İstek:`, sentence);
 
             const result = await chatSession.sendMessage(sentence);
 
-            console.log('API yanıtı:', result.response.text());
+            const responseText = result.response.text();
 
-            return result.response.text();
+            console.log(`[${new Date().toISOString()}] [generate-story] Yanıt:`, responseText);
+
+            return responseText;
         } catch (error) {
-            console.error('API key ile hata:', apiKey, error);
+            console.error(`[${new Date().toISOString()}] [generate-story] API key ile hata:`, apiKey, error);
         }
     }
     throw new Error('Tüm API anahtarları başarısız oldu.');
 }
+
 
 app.post('/generate-story', async (req, res) => {
     const sentence = req.body.sentence;
@@ -78,26 +76,22 @@ async function generateResponseWithRetry(messages) {
     for (const apiKey of apiKeys) {
         try {
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({
-                model: modelConfig.modelName,
-            });
+            const model = genAI.getGenerativeModel({ model: modelConfig.modelName });
             const chatSession = model.startChat({
                 generationConfig: generationConfig,
                 history: messages,
             });
 
-            console.log('API isteği gönderiliyor:', {
-                messages: messages,
-                generationConfig: generationConfig,
-            });
+            console.log(`[${new Date().toISOString()}] [ai-agent] İstek:`, JSON.stringify(messages, null, 2));
 
             const result = await chatSession.sendMessage(messages[messages.length - 1].parts);
+            const responseText = result.response.text();
 
-            console.log('API yanıtı:', result.response.text());
+            console.log(`[${new Date().toISOString()}] [ai-agent] Yanıt:`, responseText);
 
-            return result.response.text();
+            return responseText;
         } catch (error) {
-            console.error('API key ile hata:', apiKey, error);
+            console.error(`[${new Date().toISOString()}] [ai-agent] API key ile hata:`, apiKey, error);
         }
     }
     throw new Error('Tüm API anahtarları başarısız oldu.');
