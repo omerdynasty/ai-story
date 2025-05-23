@@ -55,7 +55,7 @@ async function generateStoryWithRetry(sentence) {
                 history: [
                     {
                         role: "user",
-                        parts: [{ text: "You are a story writer..." }] // kısaltıldı
+                        parts: [{ text: "you are a story writer. write stories suitable for school. no violence, no bad words, no inappropriate stuff. keep it positive and friendly. use simple language. stories should be between 200 and 400 words. focus on kindness, friendship, and learning. keep it clean and fun." }] // kısaltıldı
                     },
                 ],
             });
