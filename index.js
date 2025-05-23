@@ -6,6 +6,18 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+// ip kontrol middleware'i
+app.use((req, res, next) => {
+    const allowedIp = '45.84.189.34';
+    const requestIp = req.ip.replace('::ffff:', ''); // IPv4 uyumlu hale getiriyoruz
+
+    if (requestIp === allowedIp) {
+        next();
+    } else {
+        res.status(403).json({ error: 'Access denied. IP not allowed.' });
+    }
+});
+
 
 const apiKeys = [
     process.env.GEMINI_API_KEY,
