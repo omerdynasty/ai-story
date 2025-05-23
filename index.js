@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 // ip kontrol middleware'i
-const allowedOrigin = 'https://perspectives.com.tr';
+const allowedOrigin = process.env.origin;
 
 app.use((req, res, next) => {
     const origin = req.headers.origin;
