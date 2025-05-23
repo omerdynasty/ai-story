@@ -7,16 +7,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 // ip kontrol middleware'i
+app.set('trust proxy', true); // bu satırı mutlaka ekle
+
 app.use((req, res, next) => {
     const allowedIp = '45.84.189.34';
-    const requestIp = req.ip.replace('::ffff:', ''); // IPv4 uyumlu hale getiriyoruz
+    const requestIp = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim().replace('::ffff:', '');
+
+    console.log('gelen ip:', requestIp); // debug için
 
     if (requestIp === allowedIp) {
         next();
     } else {
-        res.status(403).json({ error: 'Access denied. IP not allowed.' });
+        res.status(403).json({ error: 'access denied, ip not allowed' });
     }
 });
+
 
 
 const apiKeys = [
