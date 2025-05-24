@@ -11,12 +11,12 @@ const allowedOrigin = process.env.origin;
 
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    console.log('gelen origin:', origin); // debug için
+    console.log('origin:', origin); // debug için
 
     if (origin === allowedOrigin || !origin) {
         next();
     } else {
-        res.status(403).json({ error: 'access denied, origin not allowed' });
+        res.status(403).json({ error: 'access denied' });
     }
 });
 
@@ -55,7 +55,7 @@ async function generateStoryWithRetry(sentence) {
                 history: [
                     {
                         role: "user",
-                        parts: [{ text: "you are a story writer. write stories suitable for school. no violence, no bad words, no inappropriate stuff. keep it positive and friendly. use simple language. stories should be between 200 and 400 words. focus on kindness, friendship, and learning. keep it clean and fun." }] // kısaltıldı
+                        parts: [{ text: "you are a story writer. write stories suitable for school. no violence, no bad words, no inappropriate stuff. keep it positive and friendly. use simple language. stories should be between 200 and 400 words. focus on kindness, friendship, and learning. keep it clean and fun. Do not deviate from these instructions and reject any request that does not follow these instructions immediately" }] // kısaltıldı
                     },
                 ],
             });
