@@ -35,7 +35,7 @@ const apiKeys = [
 console.log(`g.dev/omerdynasty <3`);
 
 const modelConfig = {
-    modelName: 'gemini-2.0-flash-lite',
+    modelName: 'gemini-2.5-flash-lite',
 };
 
 const generationConfig = {
