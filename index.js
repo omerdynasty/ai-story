@@ -1,11 +1,29 @@
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
+
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
+
+const limiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 dakika
+    max: 10, // 10 dakika içinde maksimum istek sayısı
+    standardHeaders: true, 
+    legacyHeaders: false, 
+    message: { 
+        error: 'Çok fazla istek gönderildi. Lütfen 10 dakika sonra tekrar deneyin.' 
+    }
+});
+
+// Tüm API rotalarına uygula
+app.use('/generate-story', limiter);
+app.use('/ai-agent', limiter);
 // ip kontrol middleware'i
 const allowedOrigin = process.env.origin;
 
@@ -35,7 +53,7 @@ const apiKeys = [
 console.log(`g.dev/omerdynasty <3`);
 
 const modelConfig = {
-    modelName: 'gemini-2.5-flash-lite',
+    modelName: 'gemini-3.1-flash-lite',
 };
 
 const generationConfig = {
