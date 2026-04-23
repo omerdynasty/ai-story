@@ -1,5 +1,7 @@
 # AI Story and Language Agent
 
+## ⚠️ README IS OUTDATED!
+
 This is an Express.js application that integrates with Google's Gemini API for generating stories and providing language assistance. The API supports multiple API keys, retries on failure, and has two main functionalities: generating stories and assisting with language learning.
 
 ## Features
