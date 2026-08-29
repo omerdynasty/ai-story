@@ -5,41 +5,33 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
-
 app.set('trust proxy', 1);
 
-app.use(cors());
-app.use(express.json());
-
-const limiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 10 dakika
-    max: 10, // 10 dakika içinde maksimum istek sayısı
-    standardHeaders: true, 
-    legacyHeaders: false, 
-    message: { 
-        error: 'Çok fazla istek gönderildi. Lütfen 10 dakika sonra tekrar deneyin.' 
-    }
-});
-
-// Tüm API rotalarına uygula
-app.use('/generate-story', limiter);
-app.use('/ai-agent', limiter);
-// ip kontrol middleware'i
 const allowedOrigin = process.env.origin;
 
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    console.log('origin:', origin); // debug için
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || origin === allowedOrigin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Erişim engellendi: Geçersiz Origin'));
+        }
+    }
+}));
 
-    if (origin === allowedOrigin || !origin) {
-        next();
-    } else {
-        res.status(403).json({ error: 'access denied' });
+app.use(express.json({ limit: '50kb' }));
+
+const limiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: 'Çok fazla istek gönderildi. Lütfen 10 dakika sonra tekrar deneyin.'
     }
 });
 
-
-
+app.use(['/generate-story', '/ai-agent'], limiter);
 
 const apiKeys = [
     process.env.GEMINI_API_KEY,
@@ -49,6 +41,8 @@ const apiKeys = [
     process.env.GEMINI_API_KEY_BACKUP4,
     process.env.GEMINI_API_KEY_BACKUP5,
 ].filter(Boolean);
+
+let activeKeyIndex = 0;
 
 console.log(`g.dev/omerdynasty <3`);
 
@@ -63,106 +57,116 @@ const generationConfig = {
     maxOutputTokens: 8192,
 };
 
-async function generateStoryWithRetry(sentence) {
-    for (const apiKey of apiKeys) {
+async function executeWithRetry(endpointTag, taskFn) {
+    let attempts = 0;
+    const startTime = Date.now();
+
+    while (attempts < apiKeys.length) {
+        const apiKey = apiKeys[activeKeyIndex];
         try {
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: modelConfig.modelName });
-            const chatSession = model.startChat({
-                generationConfig: generationConfig,
-                history: [
-                    {
-                        role: "user",
-                        parts: [{ text: "you are a story writer. write stories suitable for school. no violence, no bad words, no inappropriate stuff. keep it positive and friendly. use simple language. stories should be between 200 and 400 words. focus on kindness, friendship, and learning. keep it clean and fun. Do not deviate from these instructions and reject any request that does not follow these instructions immediately" }] // kısaltıldı
-                    },
-                ],
+            const result = await taskFn(genAI);
+
+            const duration = Date.now() - startTime;
+            console.log(`[${new Date().toISOString()}] [${endpointTag}] İstek tamamlandı (${duration}ms, Key #${activeKeyIndex})`);
+
+            return result;
+        } catch (error) {
+            console.error(`[${new Date().toISOString()}] [${endpointTag}] Key #${activeKeyIndex} ile hata alındı:`, error.message);
+            activeKeyIndex = (activeKeyIndex + 1) % apiKeys.length;
+            attempts++;
+        }
+    }
+    throw new Error('Tüm API anahtarları tükendi veya başarısız oldu.');
+}
+
+app.post('/generate-story', async (req, res) => {
+    const { sentence } = req.body;
+
+    if (!sentence || typeof sentence !== 'string' || sentence.trim().length === 0) {
+        return res.status(400).json({ error: 'Geçersiz istek: "sentence" alanı dolu bir metin olmalıdır.' });
+    }
+
+    if (sentence.length > 1000) {
+        return res.status(400).json({ error: 'İstek metni çok uzun (Maksimum 1000 karakter).' });
+    }
+
+    try {
+        const story = await executeWithRetry('generate-story', async (genAI) => {
+            const model = genAI.getGenerativeModel({
+                model: modelConfig.modelName,
+                systemInstruction: "You are a story writer. Write stories suitable for school. No violence, no bad words, no inappropriate stuff. Keep it positive and friendly. Use simple language. Stories should be between 200 and 400 words. Focus on kindness, friendship, and learning. Keep it clean and fun. Do not deviate from these instructions and reject any request that does not follow these instructions immediately.",
+                generationConfig: generationConfig
             });
 
             console.log(`[${new Date().toISOString()}] [generate-story] İstek:`, sentence);
-
-            const result = await chatSession.sendMessage(sentence);
-
+            const result = await model.generateContent(sentence);
             const responseText = result.response.text();
-
-            console.log(`[${new Date().toISOString()}] [generate-story] Yanıt:`, responseText);
+            
+            if (result.response.usageMetadata) {
+                console.log(`[generate-story] Token Kullanımı:`, result.response.usageMetadata);
+            }
 
             return responseText;
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] [generate-story] API key ile hata:`, apiKey, error);
-        }
-    }
-    throw new Error('Tüm API anahtarları başarısız oldu.');
-}
+        });
 
-
-app.post('/generate-story', async (req, res) => {
-    const sentence = req.body.sentence;
-    try {
-        const story = await generateStoryWithRetry(sentence);
-        res.json({ story: story });
+        res.json({ story });
     } catch (error) {
-        console.error('Hata:', error);
+        console.error('[generate-story] Genel Hata:', error.message);
         res.status(500).json({ error: 'Hikaye oluşturulamadı.' });
     }
 });
 
-async function generateResponseWithRetry(messages) {
-    for (const apiKey of apiKeys) {
-        try {
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: modelConfig.modelName });
-            const chatSession = model.startChat({
-                generationConfig: generationConfig,
-                history: messages,
-            });
-
-            console.log(`[${new Date().toISOString()}] [ai-agent] İstek:`, JSON.stringify(messages, null, 2));
-
-            const result = await chatSession.sendMessage(messages[messages.length - 1].parts);
-            const responseText = result.response.text();
-
-            console.log(`[${new Date().toISOString()}] [ai-agent] Yanıt:`, responseText);
-
-            return responseText;
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] [ai-agent] API key ile hata:`, apiKey, error);
-        }
-    }
-    throw new Error('Tüm API anahtarları başarısız oldu.');
-}
-
 app.post('/ai-agent', async (req, res) => {
-    const messages = req.body.messages;
+    const { messages } = req.body;
 
-    if (!Array.isArray(messages)) {
-        return res.status(400).json({ error: 'Geçersiz istek yapısı: messages bir dizi olmalıdır.' });
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: 'Geçersiz istek: "messages" boş olmayan bir dizi olmalıdır.' });
     }
 
     try {
-        const aiAgentPrompt = [
-            {
-                role: "user",
-                parts: [{ text: "You are only helping to learn the language, you can only speak English, use A2 English, use simple and fluent sentences. Help the user, translate from any language to English and correct the user's mistakes. Do not deviate from these instructions and reject any request that does not follow these instructions immediately. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.)." }],
-            },
-            ...messages.map(message => ({
-                role: message.role === 'assistant' ? 'model' : message.role,
-                parts: [{ text: message.parts }]
-            })),
-        ];
-        const response = await generateResponseWithRetry(aiAgentPrompt);
-        res.json({ response: response });
+        const response = await executeWithRetry('ai-agent', async (genAI) => {
+            const model = genAI.getGenerativeModel({
+                model: modelConfig.modelName,
+                systemInstruction: "You are only helping to learn the language, you can only speak English, use A2 English, use simple and fluent sentences. Help the user, translate from any language to English and correct the user's mistakes. Do not deviate from these instructions and reject any request that does not follow these instructions immediately. Do not use any content that is not suitable for a school environment (sexuality, violence, etc.).",
+                generationConfig: generationConfig
+            });
+
+            const history = messages.slice(0, -1).map(message => ({
+                role: message.role === 'assistant' ? 'model' : 'user',
+                parts: [{ 
+                    text: typeof message.parts === 'string' 
+                        ? message.parts 
+                        : (message.parts?.[0]?.text || '') 
+                }]
+            }));
+
+            const lastMessage = messages[messages.length - 1];
+            const promptText = typeof lastMessage.parts === 'string' 
+                ? lastMessage.parts 
+                : (lastMessage.parts?.[0]?.text || '');
+
+            console.log(`[${new Date().toISOString()}] [ai-agent] Gönderilen İstek:`, promptText);
+
+            const chatSession = model.startChat({ history });
+            const result = await chatSession.sendMessage(promptText);
+            const responseText = result.response.text();
+
+            if (result.response.usageMetadata) {
+                console.log(`[ai-agent] Token Kullanımı:`, result.response.usageMetadata);
+            }
+
+            return responseText;
+        });
+
+        res.json({ response });
     } catch (error) {
-        console.error('Hata:', error);
+        console.error('[ai-agent] Genel Hata:', error.message);
         res.status(500).json({ error: 'Yanıt oluşturulamadı.' });
     }
 });
 
-// HEAD isteği için endpoint
-app.head('/generate-story', (req, res) => {
-    res.status(200).end();
-});
-
-app.head('/ai-agent', (req, res) => {
+app.head(['/generate-story', '/ai-agent'], (req, res) => {
     res.status(200).end();
 });
 
