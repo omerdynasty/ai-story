@@ -158,4 +158,4 @@ const generationConfig = {
 
 ## License
 
-This project is licensed under the [GPL v3](LICENSE.md).
+This project is licensed under the [GPL v3](LICENSE).
